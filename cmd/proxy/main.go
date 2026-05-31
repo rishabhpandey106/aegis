@@ -13,6 +13,7 @@ import (
 
 	"github.com/aegis/firewall/internal/cache"
 	"github.com/aegis/firewall/internal/db"
+	grpc_client "github.com/aegis/firewall/internal/grpc"
 	"github.com/aegis/firewall/internal/middleware"
 	"github.com/aegis/firewall/internal/proxy"
 	"github.com/aegis/firewall/internal/redis"
@@ -63,9 +64,23 @@ func main() {
 	// 4. Initialize Core Proxy
 	srv := proxy.NewServer(logger, routeCache)
 
-	// 5. Wrap Proxy in Rate Limiting Middleware (e.g. 10 requests per 60 seconds per IP for MVP testing)
+	// 5. Initialize AI Client via gRPC
+	aiClient, err := grpc_client.NewAIClient("localhost:50051")
+	if err != nil {
+		// We log the error but don't os.Exit(1). 
+		// If the AI Engine is offline, the middleware automatically "Fails Open" safely.
+		logger.Error("Failed to connect to AI Engine on startup", "error", err)
+	} else {
+		defer aiClient.Close()
+		logger.Info("Successfully initialized gRPC connection to AI Engine")
+	}
+
+	// 6. Wrap Proxy in Middlewares
+	// ORDER MATTERS: Rate Limiter First (Drop cheap DOS traffic), then AI Blocker (Expensive), then Proxy
 	rateLimiter := redis.NewRedisRateLimiter(redisClient)
-	handlerWithMiddleware := middleware.RateLimitMiddleware(logger, rateLimiter, 10, 60)(srv)
+	handlerWithMiddleware := middleware.RateLimitMiddleware(logger, rateLimiter, 10, 60)(
+		middleware.AIBlockerMiddleware(logger, aiClient)(srv),
+	)
 
 	httpServer := &http.Server{
 		Addr:         ":" + port,
