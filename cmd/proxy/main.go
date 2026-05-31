@@ -76,10 +76,19 @@ func main() {
 	}
 
 	// 6. Wrap Proxy in Middlewares
-	// ORDER MATTERS: Rate Limiter First (Drop cheap DOS traffic), then AI Blocker (Expensive), then Proxy
+	// ORDER MATTERS EXTREMELY HERE:
+	// 1. RateLimiter: Drop fast DOS traffic.
+	// 2. WAF: Drop cheap known-patterns (SQLi/XSS).
+	// 3. AIBlocker: Expensive LLM check (Prompt Injection).
+	// 4. DLP: Egress scanner (Response interception).
+	// 5. Proxy: The core upstream router.
 	rateLimiter := redis.NewRedisRateLimiter(redisClient)
 	handlerWithMiddleware := middleware.RateLimitMiddleware(logger, rateLimiter, 10, 60)(
-		middleware.AIBlockerMiddleware(logger, aiClient)(srv),
+		middleware.WAFMiddleware(logger)(
+			middleware.AIBlockerMiddleware(logger, aiClient)(
+				middleware.DLPMiddleware(logger)(srv),
+			),
+		),
 	)
 
 	httpServer := &http.Server{
