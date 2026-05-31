@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: aegis_postgres
+    environment:
+      POSTGRES_USER: aegis_user
+      POSTGRES_PASSWORD: aegis_password
+      POSTGRES_DB: aegis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aegis_user -d aegis"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aegis_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: aegis_redis
+    command: redis-server --requirepass aegis_redis_pass
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "aegis_redis_pass", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aegis_net
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: aegis_nats
+    ports:
+      - "4222:4222"  # Client port
+      - "8222:8222"  # Management port
+    command: ["-m", "8222"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/varz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aegis_net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  aegis_net:
+    driver: bridge

@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS security_rules;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS organizations;

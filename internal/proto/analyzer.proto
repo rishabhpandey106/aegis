@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package analyzer;
+
+// Specifies the Go package path for the generated code
+option go_package = "github.com/aegis/firewall/internal/proto;proto";
+
+// AIAnalyzer is the gRPC service that our Go proxy will call
+// to determine if a request is malicious.
+service AIAnalyzer {
+    // AnalyzeRequest evaluates an incoming HTTP request for malicious intent, 
+    // prompt injection, and other AI-based risk factors.
+    rpc AnalyzeRequest (AnalyzeRequestMessage) returns (AnalyzeResponseMessage) {}
+}
+
+message AnalyzeRequestMessage {
+    string project_id = 1;
+    string client_ip = 2;
+    string method = 3;
+    string path = 4;
+    map<string, string> headers = 5;
+    string body = 6;
+}
+
+message AnalyzeResponseMessage {
+    int32 risk_score = 1; // Score from 0 (safe) to 100 (high risk)
+    bool block_recommended = 2; // AI's final verdict
+    string reason = 3; // Human readable reason for the dashboard
+    repeated string flags = 4; // Categorization e.g. ["PROMPT_INJECTION", "SQLI"]
+}

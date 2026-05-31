@@ -1,0 +1,82 @@
+package proxy
+
+import (
+	"log/slog"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+)
+
+// Server represents the core reverse proxy server with dynamic routing.
+type Server struct {
+	logger         *slog.Logger
+	configProvider ConfigProvider
+}
+
+// NewServer initializes the proxy with a dynamic configuration provider.
+func NewServer(logger *slog.Logger, provider ConfigProvider) *Server {
+	return &Server{
+		logger:         logger,
+		configProvider: provider,
+	}
+}
+
+// ServeHTTP acts as the entrypoint for all proxy traffic.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// For MVP, we identify the target project via a custom HTTP header.
+	// In a full SaaS environment, this is often derived from the Host header (e.g., api-myproject.aegis.com).
+	projectID := r.Header.Get("X-Aegis-Project-Id")
+	if projectID == "" {
+		http.Error(w, "Missing X-Aegis-Project-Id header for dynamic routing", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch routing config dynamically (hits cache, falls back to DB)
+	route, err := s.configProvider.GetRoute(r.Context(), projectID)
+	if err != nil {
+		s.logger.Warn("Route not found for request", "project_id", projectID, "error", err)
+		http.Error(w, "Project not found or invalid", http.StatusNotFound)
+		return
+	}
+
+	if !route.IsActive {
+		s.logger.Warn("Blocked request to inactive project", "project_id", projectID)
+		http.Error(w, "Project is temporarily inactive", http.StatusForbidden)
+		return
+	}
+
+	parsedURL, err := url.Parse(route.UpstreamURL)
+	if err != nil {
+		s.logger.Error("Invalid upstream URL configured", "project_id", projectID, "url", route.UpstreamURL)
+		http.Error(w, "Internal configuration error", http.StatusInternalServerError)
+		return
+	}
+
+	// Instantiate the reverse proxy for this specific request
+	rp := httputil.NewSingleHostReverseProxy(parsedURL)
+
+	// Override Director to rewrite headers before dispatching to upstream
+	originalDirector := rp.Director
+	rp.Director = func(req *http.Request) {
+		originalDirector(req)
+		
+		// Map Host header to upstream's expectations
+		req.Host = parsedURL.Host
+		
+		// Inject Aegis footprint header
+		req.Header.Set("X-Aegis-Proxy", "true")
+		
+		// Strip the internal routing header for security so the backend doesn't see it
+		req.Header.Del("X-Aegis-Project-Id")
+	}
+
+	s.logger.Info("Proxying request via Dynamic Router",
+		"project_id", projectID,
+		"method", r.Method,
+		"path", r.URL.Path,
+		"upstream", parsedURL.Host,
+	)
+
+	// Execute the reverse proxy
+	rp.ServeHTTP(w, r)
+}
