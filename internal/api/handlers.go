@@ -1,6 +1,9 @@
 package api
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -44,8 +47,23 @@ func (h *ProjectHandler) handleCreateProject(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Default values
+	// Generate a highly secure random API Key
+	rawKeyBytes := make([]byte, 24)
+	if _, err := rand.Read(rawKeyBytes); err != nil {
+		h.logger.Error("Failed to generate secure random bytes", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	rawKey := "aegis_live_" + hex.EncodeToString(rawKeyBytes)
+
+	// Hash the key using SHA-256 for secure database storage
+	hash := sha256.Sum256([]byte(rawKey))
+	hashedKeyStr := hex.EncodeToString(hash[:])
+
+	// Default values and key injection
 	req.IsActive = true
+	req.APIKeyHash = &hashedKeyStr
+	req.RawAPIKey = rawKey
 
 	if err := h.repo.Create(r.Context(), &req); err != nil {
 		h.logger.Error("Failed to save project to database", "error", err)

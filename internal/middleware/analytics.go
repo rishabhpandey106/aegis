@@ -48,9 +48,13 @@ func AnalyticsMiddleware(logger *slog.Logger, publisher queue.EventPublisher) fu
 			// The request is now complete!
 			latency := time.Since(start).Milliseconds()
 
-			projectID := r.Header.Get("X-Aegis-Project-Id")
+			// Extract Project ID passed UP by RouteContextMiddleware via Response Header
+			projectID := recorder.Header().Get("X-Aegis-Project-Id")
 			if projectID == "" {
-				projectID = "global" // Useful for distinguishing ping/health traffic
+				projectID = "global" // Useful for distinguishing ping/health traffic or 401s
+			} else {
+				// Clean up the header so it doesn't leak to the external client
+				recorder.Header().Del("X-Aegis-Project-Id")
 			}
 
 			// ip, _, err := net.SplitHostPort(r.RemoteAddr)

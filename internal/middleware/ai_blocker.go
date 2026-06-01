@@ -47,23 +47,23 @@ func AIBlockerMiddleware(logger *slog.Logger, analyzer AIAnalyzer) func(http.Han
 				return
 			}
 
-			projectID := r.Header.Get("X-Aegis-Project-Id")
-			if projectID == "" {
-				projectID = "global"
+			route, ok := r.Context().Value(proxy.RouteConfigKey).(*proxy.RouteConfig)
+			if !ok || route == nil {
+				http.Error(w, "Internal configuration error", http.StatusInternalServerError)
+				return
 			}
+			projectID := route.ProjectID
 
 			// Dynamically check if AI Blocker is explicitly disabled for this project
-			if route, ok := r.Context().Value(proxy.RouteConfigKey).(*proxy.RouteConfig); ok && route != nil {
-				if rawConfig, exists := route.SecurityRules["ai_blocker"]; exists {
-					var customConf struct {
-						Enabled *bool `json:"enabled"`
-					}
-					// If the rule exists and 'enabled' is false, skip AI analysis entirely!
-					if err := json.Unmarshal(rawConfig, &customConf); err == nil && customConf.Enabled != nil && !*customConf.Enabled {
-						logger.Debug("AI Blocker disabled by Security Rule, skipping", "project_id", projectID)
-						next.ServeHTTP(w, r)
-						return
-					}
+			if rawConfig, exists := route.SecurityRules["ai_blocker"]; exists {
+				var customConf struct {
+					Enabled *bool `json:"enabled"`
+				}
+				// If the rule exists and 'enabled' is false, skip AI analysis entirely!
+				if err := json.Unmarshal(rawConfig, &customConf); err == nil && customConf.Enabled != nil && !*customConf.Enabled {
+					logger.Debug("AI Blocker disabled by Security Rule, skipping", "project_id", projectID)
+					next.ServeHTTP(w, r)
+					return
 				}
 			}
 

@@ -19,6 +19,11 @@ type MockRepo struct {
 	projects map[string]*models.Project
 }
 
+// GetByAPIKeyHash implements [models.ProjectRepository].
+func (m *MockRepo) GetByAPIKeyHash(ctx context.Context, hash string) (*models.Project, error) {
+	panic("unimplemented")
+}
+
 func (m *MockRepo) Create(ctx context.Context, p *models.Project) error {
 	p.ID = "test-uuid"
 	m.projects[p.ID] = p

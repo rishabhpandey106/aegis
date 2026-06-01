@@ -21,11 +21,12 @@ type RateLimiter interface {
 func RateLimitMiddleware(logger *slog.Logger, limiter RateLimiter, limit int, windowSec int) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// In our architecture, rate limits are scoped per Project AND per Client IP.
-			projectID := r.Header.Get("X-Aegis-Project-Id")
-			if projectID == "" {
-				projectID = "global"
+			route, ok := r.Context().Value(proxy.RouteConfigKey).(*proxy.RouteConfig)
+			if !ok || route == nil {
+				http.Error(w, "Internal configuration error", http.StatusInternalServerError)
+				return
 			}
+			projectID := route.ProjectID
 
 			// Extract the real client IP (ignoring port)
 			// ip, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -53,19 +54,17 @@ func RateLimitMiddleware(logger *slog.Logger, limiter RateLimiter, limit int, wi
 			currentWindow := windowSec
 
 			// Dynamically fetch custom limits from RouteConfig if present
-			if route, ok := r.Context().Value(proxy.RouteConfigKey).(*proxy.RouteConfig); ok && route != nil {
-				if rawConfig, exists := route.SecurityRules["rate_limit"]; exists {
-					var customConf struct {
-						Limit  int `json:"limit"`
-						Window int `json:"window"`
+			if rawConfig, exists := route.SecurityRules["rate_limit"]; exists {
+				var customConf struct {
+					Limit  int `json:"limit"`
+					Window int `json:"window"`
+				}
+				if err := json.Unmarshal(rawConfig, &customConf); err == nil {
+					if customConf.Limit > 0 {
+						currentLimit = customConf.Limit
 					}
-					if err := json.Unmarshal(rawConfig, &customConf); err == nil {
-						if customConf.Limit > 0 {
-							currentLimit = customConf.Limit
-						}
-						if customConf.Window > 0 {
-							currentWindow = customConf.Window
-						}
+					if customConf.Window > 0 {
+						currentWindow = customConf.Window
 					}
 				}
 			}

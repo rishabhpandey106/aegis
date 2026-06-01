@@ -12,7 +12,8 @@ type Project struct {
 	OrgID       string    `json:"org_id"`
 	Name        string    `json:"name"`
 	UpstreamURL string    `json:"upstream_url"`
-	APIKeyHash  *string   `json:"-"` // Omitted from JSON for security
+	APIKeyHash  *string   `json:"-"`                   // Omitted from JSON for security
+	RawAPIKey   string    `json:"api_key,omitempty"`   // Only populated once upon creation
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -24,5 +25,6 @@ type Project struct {
 type ProjectRepository interface {
 	Create(ctx context.Context, p *Project) error
 	GetByID(ctx context.Context, id string) (*Project, error)
+	GetByAPIKeyHash(ctx context.Context, hash string) (*Project, error)
 	ListByOrg(ctx context.Context, orgID string) ([]*Project, error)
 }

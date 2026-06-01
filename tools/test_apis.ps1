@@ -23,6 +23,8 @@ Write-Host "`n[3/5] Creating Project..." -ForegroundColor Cyan
 $ProjBody = "{`"org_id`": `"$($Org.id)`", `"name`": `"Main API`", `"upstream_url`": `"http://httpbin.org`"}"
 $Project = Invoke-RestMethod -Uri "http://localhost:8081/api/v1/projects" -Method Post -Headers $Headers -Body $ProjBody
 Write-Host "Success! Created Project ID: $($Project.id)" -ForegroundColor Green
+Write-Host ">>> YOUR SECURE API KEY: $($Project.api_key)" -ForegroundColor Yellow
+Write-Host ">>> SAVE THIS KEY! It will never be shown again." -ForegroundColor Yellow
 
 Write-Host "`n[4/5] Creating Dynamic Security Rule (Rate Limit)..." -ForegroundColor Cyan
 $RuleBody = '{"rule_type": "rate_limit", "configuration": {"limit": 2, "window": 60}, "action": "block"}'

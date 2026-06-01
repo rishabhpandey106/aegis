@@ -13,15 +13,15 @@ import (
 func RouteContextMiddleware(provider proxy.ConfigProvider) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			projectID := r.Header.Get("X-Aegis-Project-Id")
-			if projectID == "" {
-				http.Error(w, "Missing X-Aegis-Project-Id header for dynamic routing", http.StatusBadRequest)
+			apiKey := r.Header.Get("X-API-Key")
+			if apiKey == "" {
+				http.Error(w, "Missing X-API-Key header", http.StatusUnauthorized)
 				return
 			}
 
-			route, err := provider.GetRoute(r.Context(), projectID)
+			route, err := provider.GetRoute(r.Context(), apiKey)
 			if err != nil {
-				http.Error(w, "Project not found or invalid", http.StatusNotFound)
+				http.Error(w, "Unauthorized - Invalid API Key", http.StatusUnauthorized)
 				return
 			}
 
@@ -29,6 +29,9 @@ func RouteContextMiddleware(provider proxy.ConfigProvider) func(http.Handler) ht
 				http.Error(w, "Project is temporarily inactive", http.StatusForbidden)
 				return
 			}
+
+			// Pass the Project ID "up" the middleware chain to the Analytics logger
+			w.Header().Set("X-Aegis-Project-Id", route.ProjectID)
 
 			ctx := context.WithValue(r.Context(), proxy.RouteConfigKey, route)
 			next.ServeHTTP(w, r.WithContext(ctx))

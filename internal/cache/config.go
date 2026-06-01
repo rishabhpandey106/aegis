@@ -2,6 +2,8 @@ package cache
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -34,30 +36,34 @@ func NewInMemoryRouteCache(pRepo models.ProjectRepository, rRepo models.Security
 	}
 }
 
-// GetRoute attempts to fetch the route from the cache. 
-// If it is missing or expired, it queries the underlying database.
-func (c *InMemoryRouteCache) GetRoute(ctx context.Context, projectID string) (*proxy.RouteConfig, error) {
-	// 1. Check in-memory cache
-	if val, ok := c.cache.Load(projectID); ok {
+// GetRoute attempts to fetch the route from the cache using the raw API Key. 
+// It instantly hashes the key to protect it, and uses the hash for cache/DB lookups.
+func (c *InMemoryRouteCache) GetRoute(ctx context.Context, apiKey string) (*proxy.RouteConfig, error) {
+	// Hash the incoming raw API key
+	hashBytes := sha256.Sum256([]byte(apiKey))
+	hashStr := hex.EncodeToString(hashBytes[:])
+
+	// 1. Check in-memory cache using the HASH as the key!
+	if val, ok := c.cache.Load(hashStr); ok {
 		entry := val.(cacheEntry)
 		if time.Now().Before(entry.expiration) {
 			return entry.route, nil
 		}
 		// Cache expired, remove it
-		c.cache.Delete(projectID)
+		c.cache.Delete(hashStr)
 	}
 
-	// 2. Cache miss or expired, fetch project from DB
-	project, err := c.projectRepo.GetByID(ctx, projectID)
+	// 2. Cache miss or expired, fetch project from DB using HASH
+	project, err := c.projectRepo.GetByAPIKeyHash(ctx, hashStr)
 	if err != nil {
 		if err.Error() == "project not found" {
-			return nil, errors.New("project not found")
+			return nil, errors.New("invalid api key")
 		}
 		return nil, err
 	}
 
-	// 3. Fetch security rules for project
-	rules, err := c.ruleRepo.GetByProjectID(projectID)
+	// 3. Fetch security rules for project (still uses project.ID internally!)
+	rules, err := c.ruleRepo.GetByProjectID(project.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +80,8 @@ func (c *InMemoryRouteCache) GetRoute(ctx context.Context, projectID string) (*p
 		SecurityRules: ruleMap,
 	}
 
-	// 3. Save to cache with TTL
-	c.cache.Store(projectID, cacheEntry{
+	// 4. Save to cache with TTL
+	c.cache.Store(hashStr, cacheEntry{
 		route:      route,
 		expiration: time.Now().Add(c.ttl),
 	})

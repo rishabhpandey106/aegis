@@ -22,11 +22,11 @@ func NewPostgresProjectRepo(db *sql.DB) *PostgresProjectRepo {
 // Create inserts a new project into the database and populates the generated fields.
 func (r *PostgresProjectRepo) Create(ctx context.Context, p *models.Project) error {
 	query := `
-		INSERT INTO projects (org_id, name, upstream_url, is_active)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO projects (org_id, name, upstream_url, api_key_hash, is_active)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
 	`
-	err := r.db.QueryRowContext(ctx, query, p.OrgID, p.Name, p.UpstreamURL, p.IsActive).
+	err := r.db.QueryRowContext(ctx, query, p.OrgID, p.Name, p.UpstreamURL, p.APIKeyHash, p.IsActive).
 		Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	
 	if err != nil {
@@ -45,6 +45,24 @@ func (r *PostgresProjectRepo) GetByID(ctx context.Context, id string) (*models.P
 	p := &models.Project{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&p.ID, &p.OrgID, &p.Name, &p.UpstreamURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
+	)
+	
+	if err == sql.ErrNoRows {
+		return nil, errors.New("project not found")
+	}
+	return p, err
+}
+
+// GetByAPIKeyHash fetches a project using its hashed API key.
+func (r *PostgresProjectRepo) GetByAPIKeyHash(ctx context.Context, hash string) (*models.Project, error) {
+	query := `
+		SELECT id, org_id, name, upstream_url, api_key_hash, is_active, created_at, updated_at
+		FROM projects
+		WHERE api_key_hash = $1
+	`
+	p := &models.Project{}
+	err := r.db.QueryRowContext(ctx, query, hash).Scan(
+		&p.ID, &p.OrgID, &p.Name, &p.UpstreamURL, &p.APIKeyHash, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
 	
 	if err == sql.ErrNoRows {

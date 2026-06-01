@@ -22,15 +22,14 @@ func NewServer(logger *slog.Logger, provider ConfigProvider) *Server {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	projectID := r.Header.Get("X-Aegis-Project-Id")
-
 	// Fetch routing config dynamically from context (injected by RouteContextMiddleware)
 	route, ok := r.Context().Value(RouteConfigKey).(*RouteConfig)
 	if !ok || route == nil {
-		s.logger.Error("RouteConfig missing from context! Check middleware chain.", "project_id", projectID)
+		s.logger.Error("RouteConfig missing from context! Check middleware chain.")
 		http.Error(w, "Internal configuration error", http.StatusInternalServerError)
 		return
 	}
+	projectID := route.ProjectID
 
 	parsedURL, err := url.Parse(route.UpstreamURL)
 	if err != nil {
