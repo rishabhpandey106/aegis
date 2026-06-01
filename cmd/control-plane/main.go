@@ -46,9 +46,13 @@ func main() {
 	projectRepo := db.NewPostgresProjectRepo(dbConn)
 	projectHandler := api.NewProjectHandler(logger, projectRepo)
 
+	logsRepo := db.NewPostgresLogsRepository(dbConn, logger)
+	analyticsHandler := api.NewAnalyticsHandler(logger, logsRepo)
+
 	// Setup Router
 	mux := http.NewServeMux()
 	projectHandler.RegisterRoutes(mux)
+	analyticsHandler.RegisterRoutes(mux)
 
 	// Add simple logging middleware
 	loggedMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

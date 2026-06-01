@@ -7,9 +7,25 @@ import (
 	"github.com/aegis/firewall/internal/queue"
 )
 
+// ProjectStats holds aggregated security and traffic analytics for a project
+type ProjectStats struct {
+	TotalRequests   int            `json:"total_requests"`
+	BlockedRequests int            `json:"blocked_requests"`
+	AvgLatencyMs    float64        `json:"avg_latency_ms"`
+	RecentBlocks    []BlockedEvent `json:"recent_blocks"`
+}
+
+// BlockedEvent represents a recent blocked request
+type BlockedEvent struct {
+	Timestamp   string `json:"timestamp"`
+	ClientIP    string `json:"client_ip"`
+	BlockReason string `json:"block_reason"`
+}
+
 // LogsRepository handles persistence for analytics events.
 type LogsRepository interface {
 	SaveLog(event queue.LogEvent) error
+	GetProjectAnalytics(projectID string) (ProjectStats, error)
 }
 
 type PostgresLogsRepository struct {
@@ -39,3 +55,49 @@ func (r *PostgresLogsRepository) SaveLog(event queue.LogEvent) error {
 	)
 	return err
 }
+
+// GetProjectAnalytics aggregates traffic and security statistics for the dashboard
+func (r *PostgresLogsRepository) GetProjectAnalytics(projectID string) (ProjectStats, error) {
+	var stats ProjectStats
+
+	// Calculate aggregates
+	queryStats := `
+		SELECT 
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE blocked = true) as blocked,
+			COALESCE(AVG(latency_ms), 0) as avg_latency
+		FROM request_logs
+		WHERE project_id = $1
+	`
+	err := r.db.QueryRow(queryStats, projectID).Scan(&stats.TotalRequests, &stats.BlockedRequests, &stats.AvgLatencyMs)
+	if err != nil {
+		return stats, err
+	}
+
+	// Fetch recent blocked events
+	queryBlocks := `
+		SELECT timestamp, client_ip, block_reason 
+		FROM request_logs 
+		WHERE project_id = $1 AND blocked = true 
+		ORDER BY timestamp DESC 
+		LIMIT 10
+	`
+	rows, err := r.db.Query(queryBlocks, projectID)
+	if err != nil {
+		return stats, err
+	}
+	defer rows.Close()
+
+	stats.RecentBlocks = []BlockedEvent{}
+	for rows.Next() {
+		var event BlockedEvent
+		var ts string
+		if err := rows.Scan(&ts, &event.ClientIP, &event.BlockReason); err == nil {
+			event.Timestamp = ts
+			stats.RecentBlocks = append(stats.RecentBlocks, event)
+		}
+	}
+
+	return stats, nil
+}
+
