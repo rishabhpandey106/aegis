@@ -7,6 +7,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/nats-io/nats.go v1.52.0
 	github.com/redis/go-redis/v9 v9.20.0
+	github.com/sony/gobreaker v1.0.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 )
