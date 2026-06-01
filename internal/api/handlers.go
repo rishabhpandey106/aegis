@@ -31,6 +31,7 @@ func NewProjectHandler(logger *slog.Logger, repo models.ProjectRepository) *Proj
 func (h *ProjectHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/projects", h.handleCreateProject)
 	mux.HandleFunc("GET /api/v1/projects/{id}", h.handleGetProject)
+	mux.HandleFunc("GET /api/v1/organizations/{org_id}/projects", h.handleListProjects)
 }
 
 func (h *ProjectHandler) handleCreateProject(w http.ResponseWriter, r *http.Request) {
@@ -97,4 +98,27 @@ func (h *ProjectHandler) handleGetProject(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(project)
+}
+
+func (h *ProjectHandler) handleListProjects(w http.ResponseWriter, r *http.Request) {
+	orgID := r.PathValue("org_id")
+	if orgID == "" {
+		http.Error(w, "Missing org_id", http.StatusBadRequest)
+		return
+	}
+
+	projects, err := h.repo.ListByOrg(r.Context(), orgID)
+	if err != nil {
+		h.logger.Error("Failed to fetch projects list", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Ensure we return an empty array [] instead of null if no projects exist
+	if projects == nil {
+		projects = []*models.Project{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(projects)
 }

@@ -40,6 +40,13 @@ func main() {
 		logger.Error("Failed to ping database", "error", err)
 		os.Exit(1)
 	}
+
+	// Crucial for Serverless Databases (Neon, Supabase)
+	// Limits concurrent connections so we don't crash when the UI sends 3 requests at once
+	dbConn.SetMaxOpenConns(5)
+	dbConn.SetMaxIdleConns(5)
+	dbConn.SetConnMaxLifetime(time.Minute * 5)
+
 	logger.Info("Successfully connected to the database")
 
 	// Dependency Injection: Setup Repositories and Handlers
@@ -66,7 +73,7 @@ func main() {
 	userHandler.RegisterRoutes(mux)
 	securityRuleHandler.RegisterRoutes(mux)
 
-	// Add middlewares: Logging -> Auth -> Mux
+	// Add middlewares: CORS -> Logging -> Auth -> Mux
 	// The AuthMiddleware protects ALL endpoints on the Control Plane MVP.
 	authMux := api.AuthMiddleware(logger)(mux)
 
@@ -75,9 +82,11 @@ func main() {
 		authMux.ServeHTTP(w, r)
 	})
 
+	corsMux := api.CORSMiddleware()(loggedMux)
+
 	httpServer := &http.Server{
 		Addr:    ":" + port,
-		Handler: loggedMux,
+		Handler: corsMux,
 	}
 
 	// Start Server
