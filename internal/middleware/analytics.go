@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aegis/firewall/internal/queue"
@@ -29,7 +30,7 @@ func (r *statusRecorder) Flush() {
 	}
 }
 
-// AnalyticsMiddleware intercepts every request, measures total latency, captures the 
+// AnalyticsMiddleware intercepts every request, measures total latency, captures the
 // response status, and asynchronously fires a log event to NATS.
 func AnalyticsMiddleware(logger *slog.Logger, publisher queue.EventPublisher) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -52,14 +53,26 @@ func AnalyticsMiddleware(logger *slog.Logger, publisher queue.EventPublisher) fu
 				projectID = "global" // Useful for distinguishing ping/health traffic
 			}
 
-			ip, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				ip = r.RemoteAddr
+			// ip, _, err := net.SplitHostPort(r.RemoteAddr)
+			// if err != nil {
+			// 	ip = r.RemoteAddr
+			// }
+			ip := r.Header.Get("X-Forwarded-For")
+
+			if ip != "" {
+				// sometimes multiple IPs come: "client, proxy1, proxy2"
+				ip = strings.Split(ip, ",")[0]
+			} else {
+				var err error
+				ip, _, err = net.SplitHostPort(r.RemoteAddr)
+				if err != nil {
+					ip = r.RemoteAddr
+				}
 			}
 
 			// We can infer if the request was blocked by our security layers based on the status code
 			blocked := recorder.status == http.StatusForbidden || recorder.status == http.StatusTooManyRequests
-			
+
 			reason := ""
 			if blocked {
 				if recorder.status == http.StatusTooManyRequests {
@@ -81,10 +94,13 @@ func AnalyticsMiddleware(logger *slog.Logger, publisher queue.EventPublisher) fu
 				BlockReason: reason,
 			}
 
-			// Fire and forget: send the log to NATS asynchronously. 
+			// Fire and forget: send the log to NATS asynchronously.
 			// This adds practically zero latency to the user's web request.
-			err = publisher.Publish("analytics.logs", event)
-			if err != nil {
+			// err = publisher.Publish("analytics.logs", event)
+			// if err != nil {
+			// 	logger.Error("Failed to publish analytics event to NATS", "error", err)
+			// }
+			if err := publisher.Publish("analytics.logs", event); err != nil {
 				logger.Error("Failed to publish analytics event to NATS", "error", err)
 			}
 		})
