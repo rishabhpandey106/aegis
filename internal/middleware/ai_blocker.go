@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	pb "github.com/aegis/firewall/internal/proto"
+	"github.com/aegis/firewall/internal/proxy"
 )
 
 // AIAnalyzer defines the contract for sending requests to the AI engine.
@@ -49,6 +50,21 @@ func AIBlockerMiddleware(logger *slog.Logger, analyzer AIAnalyzer) func(http.Han
 			projectID := r.Header.Get("X-Aegis-Project-Id")
 			if projectID == "" {
 				projectID = "global"
+			}
+
+			// Dynamically check if AI Blocker is explicitly disabled for this project
+			if route, ok := r.Context().Value(proxy.RouteConfigKey).(*proxy.RouteConfig); ok && route != nil {
+				if rawConfig, exists := route.SecurityRules["ai_blocker"]; exists {
+					var customConf struct {
+						Enabled *bool `json:"enabled"`
+					}
+					// If the rule exists and 'enabled' is false, skip AI analysis entirely!
+					if err := json.Unmarshal(rawConfig, &customConf); err == nil && customConf.Enabled != nil && !*customConf.Enabled {
+						logger.Debug("AI Blocker disabled by Security Rule, skipping", "project_id", projectID)
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
 			}
 
 			// ip, _, err := net.SplitHostPort(r.RemoteAddr)

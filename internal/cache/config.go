@@ -16,19 +16,21 @@ type cacheEntry struct {
 }
 
 // InMemoryRouteCache implements proxy.ConfigProvider.
-// It wraps a database repository with an in-memory TTL cache to prevent 
+// It wraps database repositories with an in-memory TTL cache to prevent 
 // the proxy from querying the database on every single HTTP request.
 type InMemoryRouteCache struct {
-	repo  models.ProjectRepository
-	cache sync.Map
-	ttl   time.Duration
+	projectRepo models.ProjectRepository
+	ruleRepo    models.SecurityRuleRepository
+	cache       sync.Map
+	ttl         time.Duration
 }
 
 // NewInMemoryRouteCache initializes a new caching provider.
-func NewInMemoryRouteCache(repo models.ProjectRepository, ttl time.Duration) *InMemoryRouteCache {
+func NewInMemoryRouteCache(pRepo models.ProjectRepository, rRepo models.SecurityRuleRepository, ttl time.Duration) *InMemoryRouteCache {
 	return &InMemoryRouteCache{
-		repo: repo,
-		ttl:  ttl,
+		projectRepo: pRepo,
+		ruleRepo:    rRepo,
+		ttl:         ttl,
 	}
 }
 
@@ -45,8 +47,8 @@ func (c *InMemoryRouteCache) GetRoute(ctx context.Context, projectID string) (*p
 		c.cache.Delete(projectID)
 	}
 
-	// 2. Cache miss or expired, fetch from DB
-	project, err := c.repo.GetByID(ctx, projectID)
+	// 2. Cache miss or expired, fetch project from DB
+	project, err := c.projectRepo.GetByID(ctx, projectID)
 	if err != nil {
 		if err.Error() == "project not found" {
 			return nil, errors.New("project not found")
@@ -54,10 +56,22 @@ func (c *InMemoryRouteCache) GetRoute(ctx context.Context, projectID string) (*p
 		return nil, err
 	}
 
+	// 3. Fetch security rules for project
+	rules, err := c.ruleRepo.GetByProjectID(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	ruleMap := make(map[string][]byte)
+	for _, r := range rules {
+		ruleMap[r.RuleType] = []byte(r.Configuration)
+	}
+
 	route := &proxy.RouteConfig{
-		ProjectID:   project.ID,
-		UpstreamURL: project.UpstreamURL,
-		IsActive:    project.IsActive,
+		ProjectID:     project.ID,
+		UpstreamURL:   project.UpstreamURL,
+		IsActive:      project.IsActive,
+		SecurityRules: ruleMap,
 	}
 
 	// 3. Save to cache with TTL

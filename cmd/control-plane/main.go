@@ -49,15 +49,30 @@ func main() {
 	logsRepo := db.NewPostgresLogsRepository(dbConn, logger)
 	analyticsHandler := api.NewAnalyticsHandler(logger, logsRepo)
 
+	orgRepo := db.NewPostgresOrgRepo(dbConn)
+	orgHandler := api.NewOrgHandler(logger, orgRepo)
+
+	userRepo := db.NewPostgresUserRepo(dbConn)
+	userHandler := api.NewUserHandler(logger, userRepo)
+
+	securityRuleRepo := db.NewPostgresSecurityRuleRepo(dbConn)
+	securityRuleHandler := api.NewSecurityRuleHandler(logger, securityRuleRepo)
+
 	// Setup Router
 	mux := http.NewServeMux()
 	projectHandler.RegisterRoutes(mux)
 	analyticsHandler.RegisterRoutes(mux)
+	orgHandler.RegisterRoutes(mux)
+	userHandler.RegisterRoutes(mux)
+	securityRuleHandler.RegisterRoutes(mux)
 
-	// Add simple logging middleware
+	// Add middlewares: Logging -> Auth -> Mux
+	// The AuthMiddleware protects ALL endpoints on the Control Plane MVP.
+	authMux := api.AuthMiddleware(logger)(mux)
+
 	loggedMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Control Plane Request", "method", r.Method, "path", r.URL.Path)
-		mux.ServeHTTP(w, r)
+		authMux.ServeHTTP(w, r)
 	})
 
 	httpServer := &http.Server{

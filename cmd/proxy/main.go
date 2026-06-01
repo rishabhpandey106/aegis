@@ -62,7 +62,8 @@ func main() {
 
 	// 3. Setup Repositories and the In-Memory Route Cache
 	projectRepo := db.NewPostgresProjectRepo(dbConn)
-	routeCache := cache.NewInMemoryRouteCache(projectRepo, 60*time.Second)
+	ruleRepo := db.NewPostgresSecurityRuleRepo(dbConn)
+	routeCache := cache.NewInMemoryRouteCache(projectRepo, ruleRepo, 5*time.Minute)
 
 	// 4. Initialize Core Proxy
 	srv := proxy.NewServer(logger, routeCache)
@@ -96,10 +97,12 @@ func main() {
 	// 4. DLP: Egress scanner (Response interception).
 	// 5. Proxy: The core upstream router.
 	rateLimiter := redis.NewRedisRateLimiter(redisClient)
-	pipeline := middleware.RateLimitMiddleware(logger, rateLimiter, 10, 60)(
-		middleware.WAFMiddleware(logger)(
-			middleware.AIBlockerMiddleware(logger, aiClient)(
-				middleware.DLPMiddleware(logger)(srv),
+	pipeline := middleware.RouteContextMiddleware(routeCache)(
+		middleware.RateLimitMiddleware(logger, rateLimiter, 10, 60)(
+			middleware.WAFMiddleware(logger)(
+				middleware.AIBlockerMiddleware(logger, aiClient)(
+					middleware.DLPMiddleware(logger)(srv),
+				),
 			),
 		),
 	)

@@ -21,27 +21,14 @@ func NewServer(logger *slog.Logger, provider ConfigProvider) *Server {
 	}
 }
 
-// ServeHTTP acts as the entrypoint for all proxy traffic.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// For MVP, we identify the target project via a custom HTTP header.
-	// In a full SaaS environment, this is often derived from the Host header (e.g., api-myproject.aegis.com).
 	projectID := r.Header.Get("X-Aegis-Project-Id")
-	if projectID == "" {
-		http.Error(w, "Missing X-Aegis-Project-Id header for dynamic routing", http.StatusBadRequest)
-		return
-	}
 
-	// Fetch routing config dynamically (hits cache, falls back to DB)
-	route, err := s.configProvider.GetRoute(r.Context(), projectID)
-	if err != nil {
-		s.logger.Warn("Route not found for request", "project_id", projectID, "error", err)
-		http.Error(w, "Project not found or invalid", http.StatusNotFound)
-		return
-	}
-
-	if !route.IsActive {
-		s.logger.Warn("Blocked request to inactive project", "project_id", projectID)
-		http.Error(w, "Project is temporarily inactive", http.StatusForbidden)
+	// Fetch routing config dynamically from context (injected by RouteContextMiddleware)
+	route, ok := r.Context().Value(RouteConfigKey).(*RouteConfig)
+	if !ok || route == nil {
+		s.logger.Error("RouteConfig missing from context! Check middleware chain.", "project_id", projectID)
+		http.Error(w, "Internal configuration error", http.StatusInternalServerError)
 		return
 	}
 
@@ -59,13 +46,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	originalDirector := rp.Director
 	rp.Director = func(req *http.Request) {
 		originalDirector(req)
-		
+
 		// Map Host header to upstream's expectations
 		req.Host = parsedURL.Host
-		
+
 		// Inject Aegis footprint header
 		req.Header.Set("X-Aegis-Proxy", "true")
-		
+
 		// Strip the internal routing header for security so the backend doesn't see it
 		req.Header.Del("X-Aegis-Project-Id")
 	}

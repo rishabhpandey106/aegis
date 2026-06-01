@@ -2,10 +2,13 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/aegis/firewall/internal/proxy"
 )
 
 // RateLimiter defines the contract for our rate limiting mechanism,
@@ -45,8 +48,30 @@ func RateLimitMiddleware(logger *slog.Logger, limiter RateLimiter, limit int, wi
 			// The unique bucket key: project_id:ip
 			key := projectID + ":" + ip
 
+			// Default limits
+			currentLimit := limit
+			currentWindow := windowSec
+
+			// Dynamically fetch custom limits from RouteConfig if present
+			if route, ok := r.Context().Value(proxy.RouteConfigKey).(*proxy.RouteConfig); ok && route != nil {
+				if rawConfig, exists := route.SecurityRules["rate_limit"]; exists {
+					var customConf struct {
+						Limit  int `json:"limit"`
+						Window int `json:"window"`
+					}
+					if err := json.Unmarshal(rawConfig, &customConf); err == nil {
+						if customConf.Limit > 0 {
+							currentLimit = customConf.Limit
+						}
+						if customConf.Window > 0 {
+							currentWindow = customConf.Window
+						}
+					}
+				}
+			}
+
 			// Check against the rate limiter
-			allowed, err := limiter.Allow(r.Context(), key, limit, windowSec)
+			allowed, err := limiter.Allow(r.Context(), key, currentLimit, currentWindow)
 			if err != nil {
 				// We "fail open" on Redis errors so a cache outage doesn't take down the firewall.
 				// But we log it as a severe error.

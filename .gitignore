@@ -18,6 +18,7 @@ go.work.sum
 implementation_plan.md
 task.md
 Makefile
+static_analysis_report.md
 
 # Python
 __pycache__/
