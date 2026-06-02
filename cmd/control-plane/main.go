@@ -13,6 +13,8 @@ import (
 
 	"github.com/aegis/firewall/internal/api"
 	"github.com/aegis/firewall/internal/db"
+	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -27,6 +29,19 @@ func main() {
 	// Initialize structured logging
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	logger.Info("Starting Aegis Control Plane", "port", port)
+
+	// Load environment variables (Clerk keys)
+	if err := godotenv.Load(); err != nil {
+		logger.Warn("No .env file found or error loading it, relying on system environment variables")
+	}
+
+	clerkSecretKey := os.Getenv("CLERK_SECRET_KEY")
+	if clerkSecretKey != "" {
+		clerk.SetKey(clerkSecretKey)
+		logger.Info("Clerk Authentication successfully initialized")
+	} else {
+		logger.Warn("CLERK_SECRET_KEY not found! JWT verification will fail.")
+	}
 
 	// Database Connection setup
 	dbConn, err := sql.Open("postgres", dbURL)
@@ -65,6 +80,8 @@ func main() {
 	securityRuleRepo := db.NewPostgresSecurityRuleRepo(dbConn)
 	securityRuleHandler := api.NewSecurityRuleHandler(logger, securityRuleRepo)
 
+	authSyncHandler := api.NewAuthSyncHandler(logger, userRepo, orgRepo)
+
 	// Setup Router
 	mux := http.NewServeMux()
 	projectHandler.RegisterRoutes(mux)
@@ -72,10 +89,12 @@ func main() {
 	orgHandler.RegisterRoutes(mux)
 	userHandler.RegisterRoutes(mux)
 	securityRuleHandler.RegisterRoutes(mux)
+	authSyncHandler.RegisterRoutes(mux)
 
 	// Add middlewares: CORS -> Logging -> Auth -> Mux
 	// The AuthMiddleware protects ALL endpoints on the Control Plane MVP.
-	authMux := api.AuthMiddleware(logger)(mux)
+	// It uses godotenv and userRepo to enforce DB-level RBAC.
+	authMux := api.AuthMiddleware(logger, userRepo)(mux)
 
 	loggedMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Control Plane Request", "method", r.Method, "path", r.URL.Path)

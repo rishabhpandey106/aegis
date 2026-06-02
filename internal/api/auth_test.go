@@ -6,11 +6,15 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/aegis/firewall/internal/models"
 )
 
 func TestAuthMiddleware(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	middleware := AuthMiddleware(logger)
+	// pass a nil models.UserRepository (typed) to match signature
+	var repo models.UserRepository = nil
+	middleware := AuthMiddleware(logger, repo)
 
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -17,6 +17,11 @@ type MockOrgRepo struct {
 	orgs map[string]*models.Organization
 }
 
+// Update implements [models.OrgRepository].
+func (m *MockOrgRepo) Update(org *models.Organization) error {
+	panic("unimplemented")
+}
+
 func (m *MockOrgRepo) Create(org *models.Organization) error {
 	org.ID = "org-uuid"
 	m.orgs[org.ID] = org

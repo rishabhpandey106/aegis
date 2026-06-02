@@ -16,6 +16,7 @@ type Organization struct {
 type User struct {
 	ID        string    `json:"id"`
 	OrgID     string    `json:"org_id"`
+	ClerkID   string    `json:"clerk_id"`
 	Email     string    `json:"email"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
@@ -43,11 +44,15 @@ type SecurityRuleRepository interface {
 type OrgRepository interface {
 	Create(org *Organization) error
 	GetByID(id string) (*Organization, error)
+	Update(org *Organization) error
 }
 
 // UserRepository defines CRUD for users
 type UserRepository interface {
 	Create(user *User) error
 	GetByID(id string) (*User, error)
+	GetByClerkID(clerkID string) (*User, error)
+	GetByEmail(email string) (*User, error)
+	UpdateClerkID(id string, clerkID string) error
 	ListByOrg(orgID string) ([]*User, error)
 }

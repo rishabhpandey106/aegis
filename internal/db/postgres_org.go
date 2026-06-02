@@ -36,3 +36,13 @@ func (r *PostgresOrgRepo) GetByID(id string) (*models.Organization, error) {
 	}
 	return &org, nil
 }
+
+func (r *PostgresOrgRepo) Update(org *models.Organization) error {
+	query := `
+		UPDATE organizations 
+		SET name = $1, plan = $2, updated_at = CURRENT_TIMESTAMP 
+		WHERE id = $3
+		RETURNING updated_at
+	`
+	return r.db.QueryRow(query, org.Name, org.Plan, org.ID).Scan(&org.UpdatedAt)
+}

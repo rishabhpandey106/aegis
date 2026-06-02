@@ -24,7 +24,7 @@ func NewAnalyticsHandler(logger *slog.Logger, repo db.LogsRepository) *Analytics
 
 // RegisterRoutes registers the analytics routes onto the provided mux.
 func (h *AnalyticsHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/projects/{id}/analytics", h.handleGetProjectAnalytics)
+	mux.Handle("GET /api/v1/projects/{id}/analytics", RequireRole("admin", "viewer")(http.HandlerFunc(h.handleGetProjectAnalytics)))
 }
 
 // handleGetProjectAnalytics fetches aggregated time-series and security events for a specific project.

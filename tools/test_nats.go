@@ -7,7 +7,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func runNATSListener() {
+func main() {
 	// Connect to the local NATS server
 	nc, err := nats.Connect("nats://localhost:4222")
 	if err != nil {

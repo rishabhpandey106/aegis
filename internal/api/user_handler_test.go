@@ -16,6 +16,21 @@ type MockUserRepo struct {
 	users map[string]*models.User
 }
 
+// GetByEmail implements [models.UserRepository].
+func (m *MockUserRepo) GetByEmail(email string) (*models.User, error) {
+	panic("unimplemented")
+}
+
+// UpdateClerkID implements [models.UserRepository].
+func (m *MockUserRepo) UpdateClerkID(id string, clerkID string) error {
+	panic("unimplemented")
+}
+
+// GetByClerkID implements [models.UserRepository].
+func (m *MockUserRepo) GetByClerkID(clerkID string) (*models.User, error) {
+	panic("unimplemented")
+}
+
 func (m *MockUserRepo) Create(user *models.User) error {
 	user.ID = "user-uuid"
 	m.users[user.ID] = user

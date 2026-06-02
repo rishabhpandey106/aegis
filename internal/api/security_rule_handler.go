@@ -18,8 +18,8 @@ func NewSecurityRuleHandler(logger *slog.Logger, repo models.SecurityRuleReposit
 }
 
 func (h *SecurityRuleHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/v1/projects/{id}/rules", h.handleCreateRule)
-	mux.HandleFunc("GET /api/v1/projects/{id}/rules", h.handleGetRules)
+	mux.Handle("POST /api/v1/projects/{id}/rules", RequireRole("admin")(http.HandlerFunc(h.handleCreateRule)))
+	mux.Handle("GET /api/v1/projects/{id}/rules", RequireRole("admin", "viewer")(http.HandlerFunc(h.handleGetRules)))
 }
 
 func (h *SecurityRuleHandler) handleCreateRule(w http.ResponseWriter, r *http.Request) {

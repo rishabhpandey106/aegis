@@ -16,13 +16,32 @@ func NewPostgresSecurityRuleRepo(db *sql.DB) *PostgresSecurityRuleRepo {
 }
 
 func (r *PostgresSecurityRuleRepo) Create(rule *models.SecurityRule) error {
+	var existingID string
+	err := r.db.QueryRow(`SELECT id FROM security_rules WHERE project_id = $1 AND rule_type = $2 LIMIT 1`, rule.ProjectID, rule.RuleType).Scan(&existingID)
+	
+	if err == sql.ErrNoRows {
+		// Insert new rule
+		query := `
+			INSERT INTO security_rules (project_id, rule_type, configuration, action)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id, created_at, updated_at
+		`
+		return r.db.QueryRow(query, rule.ProjectID, rule.RuleType, string(rule.Configuration), rule.Action).
+			Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
+	} else if err != nil {
+		return err
+	}
+
+	// Update existing rule (Upsert logic)
 	query := `
-		INSERT INTO security_rules (project_id, rule_type, configuration, action)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at, updated_at
+		UPDATE security_rules 
+		SET configuration = $1, action = $2, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $3
+		RETURNING created_at, updated_at
 	`
-	return r.db.QueryRow(query, rule.ProjectID, rule.RuleType, string(rule.Configuration), rule.Action).
-		Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
+	rule.ID = existingID
+	return r.db.QueryRow(query, string(rule.Configuration), rule.Action, existingID).
+		Scan(&rule.CreatedAt, &rule.UpdatedAt)
 }
 
 func (r *PostgresSecurityRuleRepo) GetByProjectID(projectID string) ([]*models.SecurityRule, error) {

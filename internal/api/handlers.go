@@ -29,9 +29,9 @@ func NewProjectHandler(logger *slog.Logger, repo models.ProjectRepository) *Proj
 // RegisterRoutes binds the handler methods to the given mux router
 // utilizing Go 1.22's native enhanced routing features.
 func (h *ProjectHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/v1/projects", h.handleCreateProject)
-	mux.HandleFunc("GET /api/v1/projects/{id}", h.handleGetProject)
-	mux.HandleFunc("GET /api/v1/organizations/{org_id}/projects", h.handleListProjects)
+	mux.Handle("POST /api/v1/projects", RequireRole("admin")(http.HandlerFunc(h.handleCreateProject)))
+	mux.Handle("GET /api/v1/projects/{id}", RequireRole("admin", "viewer")(http.HandlerFunc(h.handleGetProject)))
+	mux.Handle("GET /api/v1/organizations/{org_id}/projects", RequireRole("admin", "viewer")(http.HandlerFunc(h.handleListProjects)))
 }
 
 func (h *ProjectHandler) handleCreateProject(w http.ResponseWriter, r *http.Request) {

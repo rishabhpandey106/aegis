@@ -18,8 +18,8 @@ func NewUserHandler(logger *slog.Logger, repo models.UserRepository) *UserHandle
 }
 
 func (h *UserHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/v1/users", h.handleCreateUser)
-	mux.HandleFunc("GET /api/v1/organizations/{org_id}/users", h.handleListUsers)
+	mux.Handle("POST /api/v1/users", RequireRole("admin")(http.HandlerFunc(h.handleCreateUser)))
+	mux.Handle("GET /api/v1/organizations/{org_id}/users", RequireRole("admin", "viewer")(http.HandlerFunc(h.handleListUsers)))
 }
 
 func (h *UserHandler) handleCreateUser(w http.ResponseWriter, r *http.Request) {
