@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -47,6 +48,7 @@ func TestHandleCreateOrg(t *testing.T) {
 	payload := []byte(`{"name":"Aegis Security Corp", "plan":"enterprise"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/organizations", bytes.NewBuffer(payload))
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, "admin"))
 
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)

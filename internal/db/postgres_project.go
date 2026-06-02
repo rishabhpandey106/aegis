@@ -28,7 +28,7 @@ func (r *PostgresProjectRepo) Create(ctx context.Context, p *models.Project) err
 	`
 	err := r.db.QueryRowContext(ctx, query, p.OrgID, p.Name, p.UpstreamURL, p.APIKeyHash, p.IsActive).
 		Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
-	
+
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (r *PostgresProjectRepo) GetByID(ctx context.Context, id string) (*models.P
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&p.ID, &p.OrgID, &p.Name, &p.UpstreamURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, errors.New("project not found")
 	}
@@ -64,7 +64,7 @@ func (r *PostgresProjectRepo) GetByAPIKeyHash(ctx context.Context, hash string) 
 	err := r.db.QueryRowContext(ctx, query, hash).Scan(
 		&p.ID, &p.OrgID, &p.Name, &p.UpstreamURL, &p.APIKeyHash, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, errors.New("project not found")
 	}

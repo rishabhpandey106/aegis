@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 )
@@ -29,7 +30,7 @@ func TestWAFMiddleware(t *testing.T) {
 	})
 
 	t.Run("SQLi in URL", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/users?id=1' OR 1=1 --", nil)
+		req := httptest.NewRequest("GET", "/api/users?id="+url.QueryEscape("1' OR 1=1 --"), nil)
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 		if rr.Code != http.StatusForbidden {
@@ -74,7 +75,7 @@ func TestDLPMiddleware(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/users/1", nil)
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
-		
+
 		if rr.Code != http.StatusForbidden {
 			t.Errorf("Expected 403 Forbidden due to DLP, got %d", rr.Code)
 		}

@@ -14,9 +14,9 @@ import (
 var (
 	// sqliRegex is a basic pattern to detect SQL Injection attempts
 	sqliRegex = regexp.MustCompile(`(?i)(UNION.*SELECT|SELECT.*FROM|INSERT.*INTO|UPDATE.*SET|DELETE.*FROM|DROP.*TABLE|--|\bOR\b.*=|\bAND\b.*=)`)
-	
+
 	// xssRegex is a basic pattern to detect Cross-Site Scripting (XSS)
-	xssRegex  = regexp.MustCompile(`(?i)(<script>|javascript:|onerror=|onload=|eval\()`)
+	xssRegex = regexp.MustCompile(`(?i)(<script>|javascript:|onerror=|onload=|eval\()`)
 )
 
 // WAFMiddleware intercepts HTTP requests to check for deterministic attacks
@@ -53,7 +53,7 @@ func WAFMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 			// 2. Check the Request Body
 			if r.Body != nil {
 				bodyBytes, _ := io.ReadAll(r.Body)
-				
+
 				// Restore body for downstream middlewares
 				r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
@@ -76,10 +76,10 @@ func WAFMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 
 func blockWAF(w http.ResponseWriter, logger *slog.Logger, r *http.Request, reason string) {
 	logger.Warn("WAF Blocked Request", "ip", r.RemoteAddr, "reason", reason, "path", r.URL.Path)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusForbidden)
-	
+
 	resp := map[string]string{
 		"error":   "Forbidden",
 		"message": "Blocked by Web Application Firewall (WAF)",

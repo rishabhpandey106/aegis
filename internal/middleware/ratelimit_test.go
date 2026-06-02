@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/aegis/firewall/internal/proxy"
 )
 
 // MockRateLimiter simulates a rate limiter for unit testing without needing Redis.
@@ -33,6 +35,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 		handler := RateLimitMiddleware(logger, limiter, 100, 60)(nextHandler)
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req = req.WithContext(context.WithValue(req.Context(), proxy.RouteConfigKey, &proxy.RouteConfig{ProjectID: "test-proj"}))
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 
@@ -46,6 +49,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 		handler := RateLimitMiddleware(logger, limiter, 100, 60)(nextHandler)
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req = req.WithContext(context.WithValue(req.Context(), proxy.RouteConfigKey, &proxy.RouteConfig{ProjectID: "test-proj"}))
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 

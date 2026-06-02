@@ -18,7 +18,7 @@ type cacheEntry struct {
 }
 
 // InMemoryRouteCache implements proxy.ConfigProvider.
-// It wraps database repositories with an in-memory TTL cache to prevent 
+// It wraps database repositories with an in-memory TTL cache to prevent
 // the proxy from querying the database on every single HTTP request.
 type InMemoryRouteCache struct {
 	projectRepo models.ProjectRepository
@@ -36,7 +36,7 @@ func NewInMemoryRouteCache(pRepo models.ProjectRepository, rRepo models.Security
 	}
 }
 
-// GetRoute attempts to fetch the route from the cache using the raw API Key. 
+// GetRoute attempts to fetch the route from the cache using the raw API Key.
 // It instantly hashes the key to protect it, and uses the hash for cache/DB lookups.
 func (c *InMemoryRouteCache) GetRoute(ctx context.Context, apiKey string) (*proxy.RouteConfig, error) {
 	// Hash the incoming raw API key

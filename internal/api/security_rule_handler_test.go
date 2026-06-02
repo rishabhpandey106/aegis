@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -47,6 +48,8 @@ func TestHandleCreateSecurityRule(t *testing.T) {
 
 	payload := []byte(`{"rule_type":"rate_limit", "configuration":{"limit":5}, "action":"block"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/proj-1/rules", bytes.NewBuffer(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, "admin"))
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 

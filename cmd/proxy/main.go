@@ -71,7 +71,7 @@ func main() {
 	// 5. Initialize AI Client via gRPC
 	aiClient, err := grpc_client.NewAIClient("localhost:50051")
 	if err != nil {
-		// We log the error but don't os.Exit(1). 
+		// We log the error but don't os.Exit(1).
 		// If the AI Engine is offline, the middleware automatically "Fails Open" safely.
 		logger.Error("Failed to connect to AI Engine on startup", "error", err)
 	} else {
@@ -114,10 +114,10 @@ func main() {
 	}
 
 	httpServer := &http.Server{
-		Addr:         ":" + port,
-		Handler:      finalHandler,
-		// For a reverse proxy, these timeouts must be high enough to allow 
-		// the upstream server to process complex requests. 
+		Addr:    ":" + port,
+		Handler: finalHandler,
+		// For a reverse proxy, these timeouts must be high enough to allow
+		// the upstream server to process complex requests.
 		// 10s was too short for slow external APIs like httpbin.
 		ReadTimeout:  120 * time.Second,
 		WriteTimeout: 120 * time.Second,

@@ -38,7 +38,7 @@ func (c *AIClient) Close() error {
 
 // AnalyzeRequest sends the request metadata to the AI engine to get a security verdict.
 func (c *AIClient) AnalyzeRequest(ctx context.Context, req *pb.AnalyzeRequestMessage) (*pb.AnalyzeResponseMessage, error) {
-	// Crucial Security Design: 2-second timeout! 
+	// Crucial Security Design: 2-second timeout!
 	// If the AI Engine goes down or hangs, the Go proxy will abort the gRPC call
 	// after 2 seconds to prevent the entire API gateway from freezing.
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)

@@ -7,6 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"context"
+
+	"github.com/aegis/firewall/internal/proxy"
 	"github.com/aegis/firewall/internal/queue"
 )
 
@@ -27,6 +30,7 @@ func TestAnalyticsMiddleware(t *testing.T) {
 	mockPublisher := &MockPublisher{}
 
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Aegis-Project-Id", "test-project-123")
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte("Created OK"))
 	})
@@ -34,7 +38,7 @@ func TestAnalyticsMiddleware(t *testing.T) {
 	handler := AnalyticsMiddleware(logger, mockPublisher)(nextHandler)
 
 	req := httptest.NewRequest("POST", "/api/data", nil)
-	req.Header.Set("X-Aegis-Project-Id", "test-project-123")
+	req = req.WithContext(context.WithValue(req.Context(), proxy.RouteConfigKey, &proxy.RouteConfig{ProjectID: "test-project-123"}))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)

@@ -53,6 +53,7 @@ func TestHandleCreateProject(t *testing.T) {
 	payload := []byte(`{"org_id":"00000000-0000-0000-0000-000000000001","name":"Test API","upstream_url":"https://api.test.com"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", bytes.NewBuffer(payload))
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, "admin"))
 
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
@@ -88,6 +89,7 @@ func TestHandleGetProject(t *testing.T) {
 	handler.RegisterRoutes(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/uuid-123", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, "admin"))
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 

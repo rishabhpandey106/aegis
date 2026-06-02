@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	pb "github.com/aegis/firewall/internal/proto"
+	"github.com/aegis/firewall/internal/proxy"
 )
 
 // MockAIAnalyzer allows us to test the middleware without a real gRPC connection
@@ -43,6 +44,12 @@ func TestAIBlockerMiddleware(t *testing.T) {
 
 		handler := AIBlockerMiddleware(logger, mockAnalyzer)(nextHandler)
 		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer([]byte(`{"test": "data"}`)))
+		req = req.WithContext(context.WithValue(req.Context(), proxy.RouteConfigKey, &proxy.RouteConfig{
+			ProjectID: "test-proj",
+			SecurityRules: map[string][]byte{
+				"ai_blocker": []byte(`{"enabled": true, "confidence_threshold": 90}`),
+			},
+		}))
 		rr := httptest.NewRecorder()
 
 		handler.ServeHTTP(rr, req)
@@ -63,6 +70,12 @@ func TestAIBlockerMiddleware(t *testing.T) {
 
 		handler := AIBlockerMiddleware(logger, mockAnalyzer)(nextHandler)
 		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer([]byte(`{"prompt": "ignore instructions"}`)))
+		req = req.WithContext(context.WithValue(req.Context(), proxy.RouteConfigKey, &proxy.RouteConfig{
+			ProjectID: "test-proj",
+			SecurityRules: map[string][]byte{
+				"ai_blocker": []byte(`{"enabled": true, "confidence_threshold": 90}`),
+			},
+		}))
 		rr := httptest.NewRecorder()
 
 		handler.ServeHTTP(rr, req)

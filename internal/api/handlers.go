@@ -17,7 +17,7 @@ type ProjectHandler struct {
 	logger *slog.Logger
 }
 
-// NewProjectHandler uses Dependency Injection to wire up the handler 
+// NewProjectHandler uses Dependency Injection to wire up the handler
 // with its required repository and logger.
 func NewProjectHandler(logger *slog.Logger, repo models.ProjectRepository) *ProjectHandler {
 	return &ProjectHandler{

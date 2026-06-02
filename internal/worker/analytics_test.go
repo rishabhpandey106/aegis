@@ -20,7 +20,7 @@ func (m *MockLogsRepo) SaveLog(event queue.LogEvent) error {
 func TestAnalyticsWorker_DependencyInjection(t *testing.T) {
 	// A simple test to verify our interface bindings and repo injection works
 	repo := &MockLogsRepo{}
-	
+
 	event := queue.LogEvent{
 		Timestamp:   time.Now(),
 		ProjectID:   "test-uuid-1234",

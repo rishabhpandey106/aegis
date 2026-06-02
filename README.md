@@ -1,6 +1,6 @@
 # Aegis AI-Powered API Firewall
 
-Aegis is an enterprise-grade, language-agnostic API Security Firewall. Designed with a Zero-Trust architecture, Aegis acts as a highly-performant reverse proxy sitting in front of your upstream services. It actively inspects, scores, and filters incoming HTTP traffic using traditional WAF rulesets combined with advanced Machine Learning threat detection.
+Aegis is an enterprise-grade, language-agnostic API Security Firewall. Designed with a Zero-Trust architecture, Aegis acts as a highly-performant reverse proxy sitting in front of your upstream services. It actively inspects, scores, and filters incoming HTTP traffic using traditional WAF rulesets combined with advanced AI threat detection.
 
 ## 🏗️ System Architecture
 

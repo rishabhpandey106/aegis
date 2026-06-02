@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -43,7 +44,8 @@ func TestAnalyticsHandler_GetProjectAnalytics(t *testing.T) {
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 
-	req := httptest.NewRequest("GET", "/api/v1/projects/proj-123/analytics", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/proj-123/analytics", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, "admin"))
 	rr := httptest.NewRecorder()
 
 	mux.ServeHTTP(rr, req)

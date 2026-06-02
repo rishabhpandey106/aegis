@@ -12,8 +12,8 @@ type Project struct {
 	OrgID       string    `json:"org_id"`
 	Name        string    `json:"name"`
 	UpstreamURL string    `json:"upstream_url"`
-	APIKeyHash  *string   `json:"-"`                   // Omitted from JSON for security
-	RawAPIKey   string    `json:"api_key,omitempty"`   // Only populated once upon creation
+	APIKeyHash  *string   `json:"-"`                 // Omitted from JSON for security
+	RawAPIKey   string    `json:"api_key,omitempty"` // Only populated once upon creation
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

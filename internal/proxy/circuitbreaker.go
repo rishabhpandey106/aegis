@@ -108,7 +108,7 @@ func (t *CircuitBreakerTransport) RoundTrip(req *http.Request) (*http.Response, 
 
 	respInt, err := cb.Execute(func() (interface{}, error) {
 		resp, err := t.BaseTransport.RoundTrip(req)
-		
+
 		// If there is a network error (Connection Refused, Timeout, DNS failure)
 		if err != nil {
 			return nil, err

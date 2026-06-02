@@ -18,7 +18,7 @@ func NewPostgresSecurityRuleRepo(db *sql.DB) *PostgresSecurityRuleRepo {
 func (r *PostgresSecurityRuleRepo) Create(rule *models.SecurityRule) error {
 	var existingID string
 	err := r.db.QueryRow(`SELECT id FROM security_rules WHERE project_id = $1 AND rule_type = $2 LIMIT 1`, rule.ProjectID, rule.RuleType).Scan(&existingID)
-	
+
 	if err == sql.ErrNoRows {
 		// Insert new rule
 		query := `

@@ -100,4 +100,3 @@ func (r *PostgresLogsRepository) GetProjectAnalytics(projectID string) (ProjectS
 
 	return stats, nil
 }
-

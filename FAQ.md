@@ -68,3 +68,38 @@ False positives in the AI Engine can be mitigated by adjusting the confidence th
 ### How does the Circuit Breaker work?
 Aegis implements a **Half-Open Circuit Breaker** using the `sony/gobreaker` library. 
 If your upstream API server starts crashing or timing out, the Circuit Breaker trips to the **Open** state. While Open, Aegis instantly blocks all incoming traffic and returns a `503 Service Unavailable`, preventing your backend from being overwhelmed while it tries to recover. After a cooldown period, it enters a **Half-Open** state, letting a few test requests through. If they succeed, the circuit closes and traffic resumes normally.
+```mermaid
+flowchart TD
+
+Client[Incoming Request] --> Proxy[Aegis Proxy]
+
+Proxy --> Call[Call Upstream API]
+
+Call --> Result{Request Result}
+
+Result -->|Success| Closed[CLOSED STATE<br/>Normal Traffic Flow]
+Closed --> Proxy
+
+Result -->|Failure / Timeout| Fail[Increase Failure Counter]
+
+Fail --> Check{Threshold Exceeded?}
+
+Check -->|No| Proxy
+
+Check -->|Yes| Open[OPEN STATE<br/>Circuit Opened]
+
+Open --> Block[Return 503 Service Unavailable]
+
+Block --> Cooldown[Cooldown Period / Sleep Window]
+
+Cooldown --> Half[HALF-OPEN STATE]
+
+Half --> Probe[Test Requests Sent]
+
+Probe --> ProbeResult{Probe Success?}
+
+ProbeResult -->|Yes| CloseAgain[CLOSE CIRCUIT<br/>Resume Normal Traffic]
+CloseAgain --> Proxy
+
+ProbeResult -->|No| Open
+```

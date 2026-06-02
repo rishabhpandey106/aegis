@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -63,8 +64,10 @@ func TestHandleCreateUser(t *testing.T) {
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 
-	payload := []byte(`{"org_id":"org-1", "email":"admin@test.com"}`)
+	payload := []byte(`{"org_id":"org-123","email":"test@example.com","role":"admin"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), UserRoleKey, "admin"))
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 

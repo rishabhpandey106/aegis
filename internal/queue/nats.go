@@ -49,7 +49,7 @@ func (n *NatsPublisher) Publish(subject string, event LogEvent) error {
 	if err != nil {
 		return err
 	}
-	// NATS handles buffering and asynchronous delivery under the hood, 
+	// NATS handles buffering and asynchronous delivery under the hood,
 	// ensuring this call returns almost instantly (microseconds).
 	return n.conn.Publish(subject, data)
 }
