@@ -6,6 +6,54 @@ Aegis is an enterprise-grade, language-agnostic API Security Firewall. Designed 
 
 Aegis is composed of a microservices architecture designed for extreme horizontal scalability, sub-millisecond latency, and real-time observability.
 
+```mermaid
+flowchart TB
+
+    Client[Client Applications]
+
+    subgraph ControlPlane["Control Plane"]
+        Control["Control Plane API"]
+        Clerk["Clerk Auth"]
+        Postgres[(PostgreSQL / Neon)]
+
+        Control --> Clerk
+        Control --> Postgres
+    end
+
+    subgraph DataPlane["Data Plane"]
+        Proxy["Aegis Proxy
+        WAF
+        DLP
+        Rate Limiting
+        Circuit Breaker"]
+
+        AI["AI Threat Engine"]
+        Redis[(Redis)]
+
+        Proxy <--> AI
+        Proxy <--> Redis
+    end
+
+    subgraph AnalyticsLayer["Observability"]
+        NATS[(NATS)]
+        Worker["Analytics Worker"]
+
+        NATS --> Worker
+        Worker --> Postgres
+    end
+
+    Upstream["Protected APIs"]
+
+    Client --> Proxy
+    Proxy --> Upstream
+
+    Proxy --> NATS
+    Postgres -. Rules .-> Proxy
+
+    Client --> Control
+```
+
+
 ### Core Components
 
 1. **Control Plane (`/cmd/control-plane`)**
