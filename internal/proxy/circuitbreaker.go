@@ -91,6 +91,19 @@ func (t *CircuitBreakerTransport) RoundTrip(req *http.Request) (*http.Response, 
 		return t.BaseTransport.RoundTrip(req)
 	}
 
+	// Check if Circuit Breaker is explicitly disabled
+	if rawConfig, exists := route.SecurityRules["circuit_breaker"]; exists {
+		var customConf struct {
+			Enabled *bool `json:"enabled"`
+		}
+		if err := json.Unmarshal(rawConfig, &customConf); err == nil {
+			if customConf.Enabled != nil && !*customConf.Enabled {
+				// Bypass Circuit Breaker entirely
+				return t.BaseTransport.RoundTrip(req)
+			}
+		}
+	}
+
 	cb := t.Registry.GetBreaker(route.ProjectID, route)
 
 	respInt, err := cb.Execute(func() (interface{}, error) {

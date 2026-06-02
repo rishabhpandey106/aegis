@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+
+	"github.com/aegis/firewall/internal/proxy"
 )
 
 var (
@@ -43,7 +45,22 @@ func (r *responseRecorder) Write(b []byte) (int, error) {
 func DLPMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			
+			// Check if DLP is explicitly disabled for this project
+			if route, ok := r.Context().Value(proxy.RouteConfigKey).(*proxy.RouteConfig); ok && route != nil {
+				if rawConfig, exists := route.SecurityRules["dlp"]; exists {
+					var customConf struct {
+						Enabled *bool `json:"enabled"`
+					}
+					if err := json.Unmarshal(rawConfig, &customConf); err == nil {
+						if customConf.Enabled != nil && !*customConf.Enabled {
+							// DLP is explicitly disabled for this project
+							next.ServeHTTP(w, r)
+							return
+						}
+					}
+				}
+			}
+
 			// Setup interceptor
 			recorder := &responseRecorder{
 				header: make(http.Header),

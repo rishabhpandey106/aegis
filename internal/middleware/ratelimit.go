@@ -56,10 +56,16 @@ func RateLimitMiddleware(logger *slog.Logger, limiter RateLimiter, limit int, wi
 			// Dynamically fetch custom limits from RouteConfig if present
 			if rawConfig, exists := route.SecurityRules["rate_limit"]; exists {
 				var customConf struct {
-					Limit  int `json:"limit"`
-					Window int `json:"window"`
+					Enabled *bool `json:"enabled"`
+					Limit   int   `json:"limit"`
+					Window  int   `json:"window"`
 				}
 				if err := json.Unmarshal(rawConfig, &customConf); err == nil {
+					if customConf.Enabled != nil && !*customConf.Enabled {
+						// Rate limiter explicitly disabled for this project
+						next.ServeHTTP(w, r)
+						return
+					}
 					if customConf.Limit > 0 {
 						currentLimit = customConf.Limit
 					}

@@ -54,17 +54,21 @@ func AIBlockerMiddleware(logger *slog.Logger, analyzer AIAnalyzer) func(http.Han
 			}
 			projectID := route.ProjectID
 
-			// Dynamically check if AI Blocker is explicitly disabled for this project
+			// AI Blocker is EXPENSIVE and must be strictly OPT-IN.
+			// It only runs if the rule exists AND is explicitly enabled.
+			aiEnabled := false
 			if rawConfig, exists := route.SecurityRules["ai_blocker"]; exists {
 				var customConf struct {
 					Enabled *bool `json:"enabled"`
 				}
-				// If the rule exists and 'enabled' is false, skip AI analysis entirely!
-				if err := json.Unmarshal(rawConfig, &customConf); err == nil && customConf.Enabled != nil && !*customConf.Enabled {
-					logger.Debug("AI Blocker disabled by Security Rule, skipping", "project_id", projectID)
-					next.ServeHTTP(w, r)
-					return
+				if err := json.Unmarshal(rawConfig, &customConf); err == nil && customConf.Enabled != nil && *customConf.Enabled {
+					aiEnabled = true
 				}
+			}
+
+			if !aiEnabled {
+				next.ServeHTTP(w, r)
+				return
 			}
 
 			// ip, _, err := net.SplitHostPort(r.RemoteAddr)
