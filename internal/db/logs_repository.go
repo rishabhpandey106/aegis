@@ -26,6 +26,7 @@ type BlockedEvent struct {
 type LogsRepository interface {
 	SaveLog(event queue.LogEvent) error
 	GetProjectAnalytics(projectID string) (ProjectStats, error)
+	GetOrgAnalytics(orgID string) (ProjectStats, error)
 }
 
 type PostgresLogsRepository struct {
@@ -83,6 +84,51 @@ func (r *PostgresLogsRepository) GetProjectAnalytics(projectID string) (ProjectS
 		LIMIT 10
 	`
 	rows, err := r.db.Query(queryBlocks, projectID)
+	if err != nil {
+		return stats, err
+	}
+	defer rows.Close()
+
+	stats.RecentBlocks = []BlockedEvent{}
+	for rows.Next() {
+		var event BlockedEvent
+		var ts string
+		if err := rows.Scan(&ts, &event.ClientIP, &event.BlockReason); err == nil {
+			event.Timestamp = ts
+			stats.RecentBlocks = append(stats.RecentBlocks, event)
+		}
+	}
+
+	return stats, nil
+}
+
+// GetOrgAnalytics aggregates traffic and security statistics for all projects belonging to an organization.
+func (r *PostgresLogsRepository) GetOrgAnalytics(orgID string) (ProjectStats, error) {
+	var stats ProjectStats
+
+	queryStats := `
+		SELECT 
+			COUNT(l.*) as total,
+			COUNT(l.*) FILTER (WHERE l.blocked = true) as blocked,
+			COALESCE(AVG(l.latency_ms), 0) as avg_latency
+		FROM request_logs l
+		JOIN projects p ON l.project_id ~* '^[0-9a-f-]{36}$' AND l.project_id::uuid = p.id
+		WHERE p.org_id = $1::uuid
+	`
+	err := r.db.QueryRow(queryStats, orgID).Scan(&stats.TotalRequests, &stats.BlockedRequests, &stats.AvgLatencyMs)
+	if err != nil {
+		return stats, err
+	}
+
+	queryBlocks := `
+		SELECT l.timestamp, l.client_ip, l.block_reason 
+		FROM request_logs l
+		JOIN projects p ON l.project_id ~* '^[0-9a-f-]{36}$' AND l.project_id::uuid = p.id
+		WHERE p.org_id = $1::uuid AND l.blocked = true 
+		ORDER BY l.timestamp DESC 
+		LIMIT 10
+	`
+	rows, err := r.db.Query(queryBlocks, orgID)
 	if err != nil {
 		return stats, err
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 func check() {
-	dbURL := "postgresql://neondb_owner:prViatm81CQy@ep-small-wind-a1hrbew9-pooler.ap-southeast-1.aws.neon.tech/firewall?sslmode=require&channel_binding=require"
+	dbURL := "postgresql://aegis_user:aegis_password@localhost:5432/aegis"
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)

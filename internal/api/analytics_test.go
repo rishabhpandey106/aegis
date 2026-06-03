@@ -27,6 +27,10 @@ func (m *MockAnalyticsRepo) GetProjectAnalytics(projectID string) (db.ProjectSta
 	return m.Stats, m.Err
 }
 
+func (m *MockAnalyticsRepo) GetOrgAnalytics(orgID string) (db.ProjectStats, error) {
+	return m.Stats, m.Err
+}
+
 func TestAnalyticsHandler_GetProjectAnalytics(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	mockRepo := &MockAnalyticsRepo{
