@@ -17,7 +17,6 @@ go.work.sum
 /vendor/
 implementation_plan.md
 task.md
-Makefile
 static_analysis_report.md
 
 # Python
